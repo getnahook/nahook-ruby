@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "cgi"
+
 module Nahook
   module Resources
     # Resource for managing applications via the Management API.

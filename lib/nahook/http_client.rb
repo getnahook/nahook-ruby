@@ -13,21 +13,23 @@ module Nahook
   # @api private
   class HttpClient
     DEFAULT_BASE_URL  = "https://api.nahook.com"
-    DEFAULT_TIMEOUT   = 30
+    DEFAULT_TIMEOUT_MS = 30_000
     BASE_DELAY_MS     = 500
     MAX_DELAY_MS      = 10_000
 
     # @param token [String] bearer token for authentication
     # @param base_url [String] API base URL
-    # @param timeout [Integer] request timeout in seconds
+    # @param timeout_ms [Integer] request timeout in milliseconds (default: 30000)
     # @param retries [Integer] number of retry attempts for retryable errors
-    def initialize(token:, base_url: DEFAULT_BASE_URL, timeout: DEFAULT_TIMEOUT, retries: 0)
-      @token   = token
-      @retries = retries
+    def initialize(token:, base_url: DEFAULT_BASE_URL, timeout_ms: DEFAULT_TIMEOUT_MS, retries: 0)
+      @token      = token
+      @retries    = retries
+      @timeout_ms = timeout_ms
 
+      timeout_secs = timeout_ms / 1000.0
       @conn = Faraday.new(url: base_url.chomp("/")) do |f|
-        f.options.timeout      = timeout
-        f.options.open_timeout = timeout
+        f.options.timeout      = timeout_secs
+        f.options.open_timeout = timeout_secs
         f.adapter Faraday.default_adapter
       end
     end
@@ -77,7 +79,7 @@ module Nahook
           raise
 
         rescue Faraday::TimeoutError => e
-          last_error = TimeoutError.new((@conn.options.timeout || DEFAULT_TIMEOUT) * 1000)
+          last_error = TimeoutError.new(@timeout_ms)
           raise last_error unless attempt < @retries && retryable?(last_error)
 
         rescue Faraday::ConnectionFailed => e

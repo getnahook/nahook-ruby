@@ -73,13 +73,13 @@ module Nahook
 
   # Raised when a network-level failure occurs (no HTTP response received).
   class NetworkError < Error
-    # @return [Exception] the underlying cause
-    attr_reader :cause
+    # @return [Exception] the underlying error that caused this failure
+    attr_reader :original_error
 
-    # @param cause [Exception] the original exception
-    def initialize(cause)
-      @cause = cause
-      super("Network error: #{cause.message}")
+    # @param original_error [Exception] the original exception
+    def initialize(original_error)
+      @original_error = original_error
+      super("Network error: #{original_error.message}")
     end
   end
 
