@@ -40,14 +40,14 @@ module Nahook
 
     # @param token [String] management token (must start with "nhm_")
     # @param base_url [String] API base URL
-    # @param timeout [Integer] request timeout in seconds
+    # @param timeout_ms [Integer] request timeout in milliseconds (default: 30000)
     # @raise [ArgumentError] if the token does not start with "nhm_"
-    def initialize(token, base_url: HttpClient::DEFAULT_BASE_URL, timeout: HttpClient::DEFAULT_TIMEOUT)
+    def initialize(token, base_url: HttpClient::DEFAULT_BASE_URL, timeout_ms: HttpClient::DEFAULT_TIMEOUT_MS)
       unless token.start_with?("nhm_")
         raise ArgumentError, "Invalid management token: must start with 'nhm_'"
       end
 
-      http = HttpClient.new(token: token, base_url: base_url, timeout: timeout)
+      http = HttpClient.new(token: token, base_url: base_url, timeout_ms: timeout_ms)
 
       @endpoints       = Resources::Endpoints.new(http)
       @event_types     = Resources::EventTypes.new(http)

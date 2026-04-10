@@ -84,7 +84,7 @@ puts session["url"] # Redirect your customer here
 ```ruby
 client = Nahook::Client.new("nhk_...",
   base_url: "https://api.nahook.com",  # default
-  timeout: 30,                          # seconds, default
+  timeout_ms: 30_000,                   # milliseconds, default
   retries: 3                            # retry on 5xx/429/network errors
 )
 ```
@@ -94,7 +94,7 @@ client = Nahook::Client.new("nhk_...",
 ```ruby
 mgmt = Nahook::Management.new("nhm_...",
   base_url: "https://api.nahook.com",  # default
-  timeout: 30                           # seconds, default
+  timeout_ms: 30_000                    # milliseconds, default
 )
 # Note: Management does not support retries
 ```
@@ -143,7 +143,7 @@ rescue Nahook::APIError => e
   puts e.retry_after   # Retry-After header value (seconds), if present
 rescue Nahook::NetworkError => e
   puts e.message       # "Network error: ..."
-  puts e.cause         # Original exception
+  puts e.original_error # Original exception
 rescue Nahook::TimeoutError => e
   puts e.message       # "Request timed out after 30000ms"
   puts e.timeout_ms    # Timeout in milliseconds
