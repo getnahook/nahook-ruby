@@ -25,7 +25,7 @@ gem install nahook
 ```ruby
 require "nahook"
 
-client = Nahook::Client.new("nhk_your_api_key")
+client = Nahook::Client.new("nhk_us_your_api_key")
 
 # Send to a specific endpoint
 result = client.send("ep_abc123", payload: { order_id: "12345", status: "paid" })
