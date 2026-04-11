@@ -24,14 +24,16 @@ module Nahook
     # @param timeout_ms [Integer] request timeout in milliseconds (default: 30000)
     # @param retries [Integer] number of retry attempts for retryable errors
     # @raise [ArgumentError] if the API key does not start with "nhk_"
-    def initialize(api_key, base_url: HttpClient::DEFAULT_BASE_URL, timeout_ms: HttpClient::DEFAULT_TIMEOUT_MS, retries: 0)
+    def initialize(api_key, base_url: nil, timeout_ms: HttpClient::DEFAULT_TIMEOUT_MS, retries: 0)
       unless api_key.start_with?("nhk_")
         raise ArgumentError, "Invalid API key: must start with 'nhk_'"
       end
 
+      resolved_url = base_url || HttpClient.resolve_base_url(api_key)
+
       @http = HttpClient.new(
         token: api_key,
-        base_url: base_url,
+        base_url: resolved_url,
         timeout_ms: timeout_ms,
         retries: retries
       )

@@ -17,6 +17,21 @@ module Nahook
     BASE_DELAY_MS     = 500
     MAX_DELAY_MS      = 10_000
 
+    REGION_BASE_URLS = {
+      "us" => "https://us.api.nahook.com",
+      "eu" => "https://eu.api.nahook.com",
+      "ap" => "https://ap.api.nahook.com",
+    }.freeze
+
+    # @api private
+    def self.resolve_base_url(token)
+      if (m = token.match(/\Anhk_([a-z]{2})_/))
+        REGION_BASE_URLS[m[1]] || DEFAULT_BASE_URL
+      else
+        DEFAULT_BASE_URL
+      end
+    end
+
     # @param token [String] bearer token for authentication
     # @param base_url [String] API base URL
     # @param timeout_ms [Integer] request timeout in milliseconds (default: 30000)
