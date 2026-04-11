@@ -68,7 +68,7 @@ mgmt.applications.list_endpoints("ws_abc123", app["id"])
 mgmt.applications.create_endpoint("ws_abc123", app["id"], url: "https://acme.com/hook")
 
 # Subscriptions
-mgmt.subscriptions.create("ws_abc123", "ep_def456", event_type_id: "evt_ghi789")
+mgmt.subscriptions.create("ws_abc123", "ep_def456", event_type_ids: ["evt_ghi789"])
 mgmt.subscriptions.list("ws_abc123", "ep_def456")
 mgmt.subscriptions.delete("ws_abc123", "ep_def456", "evt_ghi789")
 
