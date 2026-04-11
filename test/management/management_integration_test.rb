@@ -172,6 +172,98 @@ class ManagementIntegrationTest < Minitest::Test
     end
   end
 
+  # -- environments CRUD ---------------------------------------------------
+
+  def test_environments_crud
+    # Create
+    created = @mgmt.environments.create(@workspace_id,
+      name: "Ruby Test Env #{@suffix}",
+      slug: "ruby-test-env-#{@suffix}"
+    )
+    assert created["id"], "created environment should have an id"
+    env_id = created["id"]
+    assert_equal "Ruby Test Env #{@suffix}", created["name"]
+    assert_equal "ruby-test-env-#{@suffix}", created["slug"]
+
+    # Create a second environment to verify list returns >= 2
+    created2 = @mgmt.environments.create(@workspace_id,
+      name: "Ruby Test Env2 #{@suffix}",
+      slug: "ruby-test-env2-#{@suffix}"
+    )
+    env_id2 = created2["id"]
+
+    begin
+      # List
+      list_result = @mgmt.environments.list(@workspace_id)
+      assert_kind_of Array, list_result["data"]
+      assert list_result["data"].size >= 2, "should have at least 2 environments"
+      ids = list_result["data"].map { |env| env["id"] }
+      assert_includes ids, env_id
+      assert_includes ids, env_id2
+
+      # Get
+      fetched = @mgmt.environments.get(@workspace_id, env_id)
+      assert_equal env_id, fetched["id"]
+      assert_equal "Ruby Test Env #{@suffix}", fetched["name"]
+
+      # Update
+      updated = @mgmt.environments.update(@workspace_id, env_id,
+        name: "Ruby Test Env #{@suffix} Updated"
+      )
+      assert_equal "Ruby Test Env #{@suffix} Updated", updated["name"]
+
+      # Delete
+      @mgmt.environments.delete(@workspace_id, env_id)
+
+      # Verify deletion — get should 404
+      err = assert_raises(Nahook::APIError) do
+        @mgmt.environments.get(@workspace_id, env_id)
+      end
+      assert_equal 404, err.status
+    ensure
+      @mgmt.environments.delete(@workspace_id, env_id2) rescue nil
+    end
+  end
+
+  # -- environment event type visibility -----------------------------------
+
+  def test_event_type_visibility
+    # Set up: create an environment and an event type
+    env = @mgmt.environments.create(@workspace_id,
+      name: "Visibility Test #{@suffix}",
+      slug: "visibility-test-#{@suffix}"
+    )
+    env_id = env["id"]
+
+    et = @mgmt.event_types.create(@workspace_id,
+      name: "env.visibility.ruby.#{@suffix}",
+      description: "Environment visibility test event type"
+    )
+    et_id = et["id"]
+
+    begin
+      # List visibility
+      list_result = @mgmt.environments.list_event_type_visibility(@workspace_id, env_id)
+      assert_kind_of Array, list_result["data"]
+
+      # Set published = true
+      visibility = @mgmt.environments.set_event_type_visibility(
+        @workspace_id, env_id, et_id, published: true
+      )
+      assert_equal et_id, visibility["eventTypeId"]
+      assert_equal true, visibility["published"]
+
+      # Verify in list
+      after = @mgmt.environments.list_event_type_visibility(@workspace_id, env_id)
+      entry = after["data"].find { |v| v["eventTypeId"] == et_id }
+      assert entry, "event type should appear in visibility list"
+      assert_equal true, entry["published"]
+    ensure
+      @mgmt.environments.delete(@workspace_id, env_id) rescue nil
+      @mgmt.event_types.delete(@workspace_id, et_id) rescue nil
+    end
+  end
+
   # -- auth error ----------------------------------------------------------
 
   def test_invalid_token_returns_401

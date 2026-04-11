@@ -38,6 +38,9 @@ module Nahook
     # @return [Resources::PortalSessions]
     attr_reader :portal_sessions
 
+    # @return [Resources::Environments]
+    attr_reader :environments
+
     # @param token [String] management token (must start with "nhm_")
     # @param base_url [String] API base URL
     # @param timeout_ms [Integer] request timeout in milliseconds (default: 30000)
@@ -54,6 +57,7 @@ module Nahook
       @applications    = Resources::Applications.new(http)
       @subscriptions   = Resources::Subscriptions.new(http)
       @portal_sessions = Resources::PortalSessions.new(http)
+      @environments    = Resources::Environments.new(http)
     end
   end
 end
