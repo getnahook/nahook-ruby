@@ -10,6 +10,7 @@ require_relative "nahook/resources/event_types"
 require_relative "nahook/resources/applications"
 require_relative "nahook/resources/subscriptions"
 require_relative "nahook/resources/portal_sessions"
+require_relative "nahook/resources/environments"
 
 # Official Ruby SDK for the Nahook webhook platform.
 #
