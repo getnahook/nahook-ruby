@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.authors     = ["Nahook"]
   s.email       = ["support@nahook.com"]
   s.license     = "MIT"
-  s.homepage    = "https://github.com/jmatom/nahook-ruby"
+  s.homepage    = "https://github.com/getnahook/nahook-ruby"
 
   s.metadata = {
     "homepage_uri"      => s.homepage,
