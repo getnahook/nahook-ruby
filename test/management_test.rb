@@ -204,13 +204,13 @@ class ManagementTest < Minitest::Test
   def test_subscriptions_create
     @stubs.post("/management/v1/workspaces/ws_1/endpoints/ep_1/subscriptions") do |env|
       body = JSON.parse(env.body)
-      assert_equal "evt_1", body["eventTypeId"]
-      [201, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "sub_new" })]
+      assert_equal ["evt_1"], body["eventTypeIds"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "subscribed" => 1 })]
     end
 
     mgmt = build_management
-    sub = mgmt.subscriptions.create("ws_1", "ep_1", event_type_id: "evt_1")
-    assert_equal "sub_new", sub["id"]
+    sub = mgmt.subscriptions.create("ws_1", "ep_1", event_type_ids: ["evt_1"])
+    assert_equal 1, sub["subscribed"]
     @stubs.verify_stubbed_calls
   end
 

@@ -12,7 +12,7 @@ module Nahook
     # @example
     #   mgmt = Nahook::Management.new("nhm_token")
     #   mgmt.subscriptions.list("ws_abc123", "ep_def456")
-    #   mgmt.subscriptions.create("ws_abc123", "ep_def456", event_type_id: "evt_ghi789")
+    #   mgmt.subscriptions.create("ws_abc123", "ep_def456", event_type_ids: ["evt_ghi789"])
     class Subscriptions
       # @api private
       # @param http [Nahook::HttpClient]
@@ -33,17 +33,17 @@ module Nahook
         { "data" => data }
       end
 
-      # Create a subscription linking an event type to an endpoint.
+      # Subscribe an endpoint to one or more event types.
       #
       # @param workspace_id [String] the workspace public ID
       # @param endpoint_id [String] the endpoint public ID
-      # @param event_type_id [String] the event type public ID to subscribe to
-      # @return [Hash] the created subscription
-      def create(workspace_id, endpoint_id, event_type_id:)
+      # @param event_type_ids [Array<String>] event type public IDs to subscribe to
+      # @return [Hash] response with "subscribed" count
+      def create(workspace_id, endpoint_id, event_type_ids:)
         @http.request(
           method: :post,
           path: "/management/v1/workspaces/#{e(workspace_id)}/endpoints/#{e(endpoint_id)}/subscriptions",
-          body: { "eventTypeId" => event_type_id }
+          body: { "eventTypeIds" => Array(event_type_ids) }
         )
       end
 
