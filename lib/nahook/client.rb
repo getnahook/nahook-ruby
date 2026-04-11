@@ -9,11 +9,11 @@ module Nahook
   # and batch operations. Includes configurable retry with exponential backoff.
   #
   # @example Basic usage
-  #   client = Nahook::Client.new("nhk_your_api_key")
+  #   client = Nahook::Client.new("nhk_us_your_api_key")
   #   client.send("ep_abc123", payload: { order_id: "12345" })
   #
   # @example With options
-  #   client = Nahook::Client.new("nhk_your_api_key",
+  #   client = Nahook::Client.new("nhk_us_your_api_key",
   #     base_url: "https://custom.nahook.com",
   #     timeout_ms: 15_000,
   #     retries: 3

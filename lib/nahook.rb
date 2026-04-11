@@ -19,7 +19,7 @@ require_relative "nahook/resources/portal_sessions"
 # - {Nahook::Management} for managing resources (management API)
 #
 # @example Sending a webhook
-#   client = Nahook::Client.new("nhk_your_api_key")
+#   client = Nahook::Client.new("nhk_us_your_api_key")
 #   client.send("ep_abc123", payload: { order_id: "12345" })
 #
 # @example Managing endpoints
