@@ -72,6 +72,17 @@ mgmt.subscriptions.create("ws_abc123", "ep_def456", event_type_ids: ["evt_ghi789
 mgmt.subscriptions.list("ws_abc123", "ep_def456")
 mgmt.subscriptions.delete("ws_abc123", "ep_def456", "evt_ghi789")
 
+# Environments
+env = mgmt.environments.create("ws_abc123", name: "Staging", slug: "staging")
+mgmt.environments.list("ws_abc123")
+mgmt.environments.get("ws_abc123", env["id"])
+mgmt.environments.update("ws_abc123", env["id"], name: "Pre-production")
+mgmt.environments.delete("ws_abc123", env["id"])
+
+# Event Type Visibility
+mgmt.environments.list_event_type_visibility("ws_abc123", "env_abc123")
+mgmt.environments.set_event_type_visibility("ws_abc123", "env_abc123", "evt_abc123", published: true)
+
 # Portal Sessions
 session = mgmt.portal_sessions.create("ws_abc123", "app_jkl012")
 puts session["url"] # Redirect your customer here
