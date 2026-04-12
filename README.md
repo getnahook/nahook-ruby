@@ -93,18 +93,28 @@ puts session["url"] # Redirect your customer here
 ### Nahook::Client
 
 ```ruby
-client = Nahook::Client.new("nhk_...",
-  base_url: "https://api.nahook.com",  # default
+client = Nahook::Client.new("nhk_us_...",
   timeout_ms: 30_000,                   # milliseconds, default
   retries: 3                            # retry on 5xx/429/network errors
 )
 ```
 
+### Configuration
+
+The SDK automatically routes requests to the correct regional API based on your API key prefix (`nhk_us_...` -> US, `nhk_eu_...` -> EU, `nhk_ap_...` -> Asia Pacific). No configuration needed.
+
+To override the base URL (for testing or local development):
+
+```ruby
+client = Nahook::Client.new("nhk_us_...", base_url: "http://localhost:3001")
+```
+
+For unit tests, mock the SDK client at the dependency injection boundary. For integration tests, override the base URL to point at a local server.
+
 ### Nahook::Management
 
 ```ruby
 mgmt = Nahook::Management.new("nhm_...",
-  base_url: "https://api.nahook.com",  # default
   timeout_ms: 30_000                    # milliseconds, default
 )
 # Note: Management does not support retries
