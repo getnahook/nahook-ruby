@@ -30,6 +30,7 @@ class ManagementTest < Minitest::Test
     refute_nil mgmt.applications
     refute_nil mgmt.subscriptions
     refute_nil mgmt.portal_sessions
+    refute_nil mgmt.environments
   end
 
   # -- Endpoints ----------------------------------------------------------
@@ -124,6 +125,31 @@ class ManagementTest < Minitest::Test
     @stubs.verify_stubbed_calls
   end
 
+  def test_event_types_get
+    @stubs.get("/management/v1/workspaces/ws_1/event-types/evt_1") do
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "evt_1", "name" => "order.paid" })]
+    end
+
+    mgmt = build_management
+    evt = mgmt.event_types.get("ws_1", "evt_1")
+    assert_equal "evt_1", evt["id"]
+    assert_equal "order.paid", evt["name"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_event_types_update
+    @stubs.patch("/management/v1/workspaces/ws_1/event-types/evt_1") do |env|
+      body = JSON.parse(env.body)
+      assert_equal "Updated description", body["description"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "evt_1", "description" => "Updated description" })]
+    end
+
+    mgmt = build_management
+    evt = mgmt.event_types.update("ws_1", "evt_1", description: "Updated description")
+    assert_equal "Updated description", evt["description"]
+    @stubs.verify_stubbed_calls
+  end
+
   def test_event_types_delete
     @stubs.delete("/management/v1/workspaces/ws_1/event-types/evt_1") do
       [204, {}, ""]
@@ -136,6 +162,20 @@ class ManagementTest < Minitest::Test
   end
 
   # -- Applications -------------------------------------------------------
+
+  def test_applications_list
+    @stubs.get("/management/v1/workspaces/ws_1/applications") do |env|
+      assert_nil env.params["limit"]
+      assert_nil env.params["offset"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate([{ "id" => "app_1", "name" => "Acme" }])]
+    end
+
+    mgmt = build_management
+    result = mgmt.applications.list("ws_1")
+    assert_equal 1, result["data"].length
+    assert_equal "app_1", result["data"][0]["id"]
+    @stubs.verify_stubbed_calls
+  end
 
   def test_applications_list_with_pagination
     @stubs.get("/management/v1/workspaces/ws_1/applications") do |env|
@@ -161,6 +201,42 @@ class ManagementTest < Minitest::Test
     mgmt = build_management
     app = mgmt.applications.create("ws_1", name: "Acme Corp", external_id: "ext_123")
     assert_equal "app_new", app["id"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_applications_get
+    @stubs.get("/management/v1/workspaces/ws_1/applications/app_1") do
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "app_1", "name" => "Acme Corp" })]
+    end
+
+    mgmt = build_management
+    app = mgmt.applications.get("ws_1", "app_1")
+    assert_equal "app_1", app["id"]
+    assert_equal "Acme Corp", app["name"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_applications_update
+    @stubs.patch("/management/v1/workspaces/ws_1/applications/app_1") do |env|
+      body = JSON.parse(env.body)
+      assert_equal "Acme Inc", body["name"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "app_1", "name" => "Acme Inc" })]
+    end
+
+    mgmt = build_management
+    app = mgmt.applications.update("ws_1", "app_1", name: "Acme Inc")
+    assert_equal "Acme Inc", app["name"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_applications_delete
+    @stubs.delete("/management/v1/workspaces/ws_1/applications/app_1") do
+      [204, {}, ""]
+    end
+
+    mgmt = build_management
+    result = mgmt.applications.delete("ws_1", "app_1")
+    assert_nil result
     @stubs.verify_stubbed_calls
   end
 
@@ -254,6 +330,96 @@ class ManagementTest < Minitest::Test
     @stubs.verify_stubbed_calls
   end
 
+  # -- Environments ---------------------------------------------------
+
+  def test_environments_list
+    @stubs.get("/management/v1/workspaces/ws_1/environments") do |env|
+      assert_equal "Bearer #{@token}", env.request_headers["Authorization"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate([{ "id" => "env_1", "name" => "Production", "slug" => "production", "isDefault" => true }])]
+    end
+
+    mgmt = build_management
+    result = mgmt.environments.list("ws_1")
+    assert_equal 1, result["data"].length
+    assert_equal "env_1", result["data"][0]["id"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_environments_create
+    @stubs.post("/management/v1/workspaces/ws_1/environments") do |env|
+      body = JSON.parse(env.body)
+      assert_equal "Staging", body["name"]
+      assert_equal "staging", body["slug"]
+      assert_equal "application/json", env.request_headers["Content-Type"]
+      [201, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "env_new", "name" => "Staging", "slug" => "staging", "isDefault" => false })]
+    end
+
+    mgmt = build_management
+    env = mgmt.environments.create("ws_1", name: "Staging", slug: "staging")
+    assert_equal "env_new", env["id"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_environments_get
+    @stubs.get("/management/v1/workspaces/ws_1/environments/env_1") do
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "env_1", "name" => "Production" })]
+    end
+
+    mgmt = build_management
+    env = mgmt.environments.get("ws_1", "env_1")
+    assert_equal "env_1", env["id"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_environments_update
+    @stubs.patch("/management/v1/workspaces/ws_1/environments/env_1") do |env|
+      body = JSON.parse(env.body)
+      assert_equal "Pre-production", body["name"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "env_1", "name" => "Pre-production" })]
+    end
+
+    mgmt = build_management
+    env = mgmt.environments.update("ws_1", "env_1", name: "Pre-production")
+    assert_equal "Pre-production", env["name"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_environments_delete
+    @stubs.delete("/management/v1/workspaces/ws_1/environments/env_1") do
+      [204, {}, ""]
+    end
+
+    mgmt = build_management
+    result = mgmt.environments.delete("ws_1", "env_1")
+    assert_nil result
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_environments_list_event_type_visibility
+    @stubs.get("/management/v1/workspaces/ws_1/environments/env_1/event-types") do
+      [200, { "Content-Type" => "application/json" }, JSON.generate([{ "eventTypeName" => "order.created", "published" => true }])]
+    end
+
+    mgmt = build_management
+    result = mgmt.environments.list_event_type_visibility("ws_1", "env_1")
+    assert_equal 1, result["data"].length
+    assert_equal true, result["data"][0]["published"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_environments_set_event_type_visibility
+    @stubs.put("/management/v1/workspaces/ws_1/environments/env_1/event-types/evt_1/visibility") do |env|
+      body = JSON.parse(env.body)
+      assert_equal true, body["published"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "eventTypeName" => "order.created", "published" => true })]
+    end
+
+    mgmt = build_management
+    vis = mgmt.environments.set_event_type_visibility("ws_1", "env_1", "evt_1", published: true)
+    assert_equal true, vis["published"]
+    @stubs.verify_stubbed_calls
+  end
+
   # -- Error handling -----------------------------------------------------
 
   def test_api_error_on_404
@@ -292,6 +458,52 @@ class ManagementTest < Minitest::Test
     @stubs.verify_stubbed_calls
   end
 
+  # -- Headers (dedicated) ------------------------------------------------
+
+  def test_header_authorization_bearer
+    @stubs.get("/management/v1/workspaces/ws_1/endpoints") do |env|
+      assert_equal "Bearer #{@token}", env.request_headers["Authorization"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate([])]
+    end
+
+    mgmt = build_management
+    mgmt.endpoints.list("ws_1")
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_header_user_agent_prefix
+    @stubs.get("/management/v1/workspaces/ws_1/endpoints") do |env|
+      assert_match %r{\Anahook-ruby/}, env.request_headers["User-Agent"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate([])]
+    end
+
+    mgmt = build_management
+    mgmt.endpoints.list("ws_1")
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_header_content_type_on_post
+    @stubs.post("/management/v1/workspaces/ws_1/endpoints") do |env|
+      assert_equal "application/json", env.request_headers["Content-Type"]
+      [201, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "ep_1" })]
+    end
+
+    mgmt = build_management
+    mgmt.endpoints.create("ws_1", url: "https://example.com/hook")
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_header_no_content_type_on_get
+    @stubs.get("/management/v1/workspaces/ws_1/environments") do |env|
+      assert_nil env.request_headers["Content-Type"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate([])]
+    end
+
+    mgmt = build_management
+    mgmt.environments.list("ws_1")
+    @stubs.verify_stubbed_calls
+  end
+
   # -- URL encoding -------------------------------------------------------
 
   def test_url_encodes_path_segments
@@ -310,7 +522,7 @@ class ManagementTest < Minitest::Test
   def replace_adapter(mgmt)
     # Access http client through resources and swap the Faraday connection
     [mgmt.endpoints, mgmt.event_types, mgmt.applications,
-     mgmt.subscriptions, mgmt.portal_sessions].each do |resource|
+     mgmt.subscriptions, mgmt.portal_sessions, mgmt.environments].each do |resource|
       http = resource.instance_variable_get(:@http)
       conn = http.instance_variable_get(:@conn)
       new_conn = Faraday.new(url: conn.url_prefix) do |f|
