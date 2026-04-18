@@ -59,13 +59,15 @@ module Nahook
       #
       # @param workspace_id [String] the workspace public ID
       # @param id [String] the environment ID
-      # @param name [String] the updated name
+      # @param name [String, nil] the updated name
       # @return [Hash] the updated environment
-      def update(workspace_id, id, name:)
+      def update(workspace_id, id, name: nil)
+        body = {}
+        body["name"] = name unless name.nil?
         @http.request(
           method: :patch,
           path: "/management/v1/workspaces/#{e(workspace_id)}/environments/#{e(id)}",
-          body: { "name" => name }
+          body: body
         )
       end
 
