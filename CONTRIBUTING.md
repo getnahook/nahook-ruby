@@ -11,7 +11,7 @@ This repository is a **subtree-split mirror** of the Ruby SDK from our private m
 - **Bug reports** — open a GitHub issue with: reproduction steps, gem version, Ruby version (`ruby --version`), OS.
 - **Feature requests** — open an issue describing the use case and the API surface you'd want.
 - **Small code suggestions** — paste a snippet in an issue and describe intent; we'll port it into the monorepo and credit you in the resulting commit.
-- **Substantial patches** — email `support@nahook.com` first; we'll either discuss read access to the monorepo or hand-port your change with credit.
+- **Substantial patches** — email `support@nahook.com` first; we'll hand-port your change into the monorepo and credit you in the resulting commit.
 
 ## Local development
 
@@ -25,7 +25,7 @@ ruby -Ilib -Itest -e "Dir.glob('test/**/*_test.rb').each { |f| require File.expa
 
 `nahook.gemspec` declares `s.required_ruby_version = ">= 3.0"`. SDK supports Ruby 3.0+.
 
-Library convention: **`Gemfile.lock` is not committed** so consumers can resolve transitives against their own dep ranges. Don't add it.
+(Note: per Ruby library convention, `Gemfile.lock` is gitignored — that's intentional so consumers can resolve transitives against their own dep ranges.)
 
 ### Code style
 
