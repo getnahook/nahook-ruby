@@ -12,12 +12,13 @@ Gem::Specification.new do |s|
   s.authors     = ["Nahook"]
   s.email       = ["support@nahook.com"]
   s.license     = "MIT"
-  s.homepage    = "https://github.com/getnahook/nahook-ruby"
+  s.homepage    = "https://nahook.com"
 
   s.metadata = {
-    "homepage_uri"      => s.homepage,
-    "source_code_uri"   => s.homepage,
-    "changelog_uri"     => "#{s.homepage}/blob/main/CHANGELOG.md",
+    "homepage_uri"      => "https://nahook.com",
+    "source_code_uri"   => "https://github.com/getnahook/nahook-ruby",
+    "changelog_uri"     => "https://github.com/getnahook/nahook-ruby/blob/main/CHANGELOG.md",
+    "bug_tracker_uri"   => "https://github.com/getnahook/nahook-ruby/issues",
     "documentation_uri" => "https://docs.nahook.com/sdks/ruby",
     "rubygems_mfa_required" => "true"
   }
