@@ -25,10 +25,14 @@ module Nahook
       # @param workspace_id [String] the workspace public ID
       # @param app_id [String] the application public ID
       # @param metadata [Hash, nil] optional metadata for the session
+      # @param role [String, nil] optional role for the portal session
+      # @param expires_in_minutes [Integer, nil] optional session lifetime in minutes
       # @return [Hash] session with "url", "code", and "expiresAt" keys
-      def create(workspace_id, app_id, metadata: nil)
+      def create(workspace_id, app_id, metadata: nil, role: nil, expires_in_minutes: nil)
         body = {}
         body["metadata"] = metadata if metadata
+        body["role"] = role if role
+        body["expiresInMinutes"] = expires_in_minutes if expires_in_minutes
 
         @http.request(
           method: :post,
