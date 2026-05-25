@@ -39,9 +39,12 @@ module Nahook
       # @param config [Hash, nil] endpoint-specific configuration
       # @param auth_username [String, nil] basic auth username
       # @param auth_password [String, nil] basic auth password
+      # @param environment_id [String, nil] optional public id (e.g. "env_abc123") of the
+      #   environment to scope this endpoint. If omitted, the workspace's
+      #   default environment is used.
       # @return [Hash] the created endpoint
       def create(workspace_id, url:, type: nil, description: nil, metadata: nil, config: nil,
-                 auth_username: nil, auth_password: nil)
+                 auth_username: nil, auth_password: nil, environment_id: nil)
         body = { "url" => url }
         body["type"]         = type         if type
         body["description"]  = description  if description
@@ -49,6 +52,7 @@ module Nahook
         body["config"]       = config       if config
         body["authUsername"]  = auth_username if auth_username
         body["authPassword"] = auth_password if auth_password
+        body["environmentId"] = environment_id if environment_id
 
         @http.request(
           method: :post,
