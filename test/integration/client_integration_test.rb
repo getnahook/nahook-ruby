@@ -56,7 +56,9 @@ class ClientIntegrationTest < Minitest::Test
   end
 
   def test_trigger_unsubscribed
-    result = @client.trigger("unsubscribed.event.type", payload: { "no" => "subscribers" })
+    # Pre-seeded fixture event type with zero subscriptions — shared across all SDK
+    # integration tests. See packages/db/src/seeds/test-fixtures.sql section 8b.
+    result = @client.trigger("event.type.nobody.subscribed.to", payload: { "no" => "subscribers" })
 
     assert_kind_of Array, result["deliveryIds"]
     assert_empty result["deliveryIds"]
