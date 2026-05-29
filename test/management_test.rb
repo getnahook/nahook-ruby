@@ -31,6 +31,7 @@ class ManagementTest < Minitest::Test
     refute_nil mgmt.subscriptions
     refute_nil mgmt.portal_sessions
     refute_nil mgmt.environments
+    refute_nil mgmt.deliveries
   end
 
   # -- Endpoints ----------------------------------------------------------
@@ -420,6 +421,156 @@ class ManagementTest < Minitest::Test
     @stubs.verify_stubbed_calls
   end
 
+  # -- Deliveries ----------------------------------------------------
+
+  def test_list_returns_paginated_data_and_next_cursor
+    @stubs.get("/management/v1/workspaces/ws_1/endpoints/ep_1/deliveries") do |env|
+      assert_equal "Bearer #{@token}", env.request_headers["Authorization"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({
+        "deliveries" => [
+          { "id" => "del_a", "endpointId" => "ep_1", "status" => "delivered", "hasPayload" => true,
+            "totalAttempts" => 1, "firstAttemptAt" => "2026-05-28T14:30:59Z",
+            "deliveredAt" => "2026-05-28T14:30:59Z", "nextRetryAt" => nil,
+            "idempotencyKey" => "k1", "createdAt" => "2026-05-28T14:30:59Z", "updatedAt" => "2026-05-28T14:30:59Z" },
+          { "id" => "del_b", "endpointId" => "ep_1", "status" => "failed", "hasPayload" => false,
+            "totalAttempts" => 3, "firstAttemptAt" => "2026-05-28T14:31:00Z",
+            "deliveredAt" => nil, "nextRetryAt" => nil,
+            "idempotencyKey" => "k2", "createdAt" => "2026-05-28T14:31:00Z", "updatedAt" => "2026-05-28T14:31:00Z" }
+        ],
+        "nextCursor" => "opaque-token-aaa"
+      })]
+    end
+
+    mgmt = build_management
+    result = mgmt.deliveries.list("ws_1", "ep_1")
+    assert_kind_of Nahook::PaginatedResult, result
+    assert_equal 2, result.data.length
+    assert_equal "del_a", result.data[0]["id"]
+    assert_equal "opaque-token-aaa", result.next_cursor
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_list_returns_null_cursor_when_last_page
+    @stubs.get("/management/v1/workspaces/ws_1/endpoints/ep_1/deliveries") do
+      [200, { "Content-Type" => "application/json" }, JSON.generate({
+        "deliveries" => [],
+        "nextCursor" => nil
+      })]
+    end
+
+    mgmt = build_management
+    result = mgmt.deliveries.list("ws_1", "ep_1")
+    assert_equal [], result.data
+    assert_nil result.next_cursor
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_list_forwards_query_params
+    @stubs.get("/management/v1/workspaces/ws_1/endpoints/ep_1/deliveries") do |env|
+      assert_equal "25", env.params["limit"]
+      assert_equal "opaque-token-xyz", env.params["cursor"]
+      assert_equal "failed", env.params["status"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "deliveries" => [], "nextCursor" => nil })]
+    end
+
+    mgmt = build_management
+    mgmt.deliveries.list("ws_1", "ep_1", limit: 25, cursor: "opaque-token-xyz", status: "failed")
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_list_omits_unset_query_params
+    @stubs.get("/management/v1/workspaces/ws_1/endpoints/ep_1/deliveries") do |env|
+      assert_nil env.params["limit"]
+      assert_nil env.params["cursor"]
+      assert_nil env.params["status"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "deliveries" => [], "nextCursor" => nil })]
+    end
+
+    mgmt = build_management
+    mgmt.deliveries.list("ws_1", "ep_1")
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_get_returns_metadata_without_envelope_by_default
+    @stubs.get("/management/v1/workspaces/ws_1/deliveries/del_a") do |env|
+      assert_nil env.params["include"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({
+        "id" => "del_a", "idempotencyKey" => "k1", "endpointId" => "ep_1",
+        "status" => "delivered", "totalAttempts" => 1,
+        "firstAttemptAt" => "2026-05-28T14:30:59Z", "deliveredAt" => "2026-05-28T14:30:59Z",
+        "nextRetryAt" => nil, "hasPayload" => true,
+        "createdAt" => "2026-05-28T14:30:59Z", "updatedAt" => "2026-05-28T14:30:59Z"
+      })]
+    end
+
+    mgmt = build_management
+    delivery = mgmt.deliveries.get("ws_1", "del_a")
+    assert_equal "del_a", delivery["id"]
+    assert_equal true, delivery["hasPayload"]
+    refute delivery.key?("payload"), "metadata-only response must not include 'payload'"
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_get_with_include_payload_returns_envelope
+    @stubs.get("/management/v1/workspaces/ws_1/deliveries/del_a") do |env|
+      assert_equal "payload", env.params["include"]
+      [200, { "Content-Type" => "application/json" }, JSON.generate({
+        "id" => "del_a", "idempotencyKey" => "k1", "endpointId" => "ep_1",
+        "status" => "delivered", "totalAttempts" => 1,
+        "firstAttemptAt" => "2026-05-28T14:30:59Z", "deliveredAt" => "2026-05-28T14:30:59Z",
+        "nextRetryAt" => nil, "hasPayload" => true,
+        "createdAt" => "2026-05-28T14:30:59Z", "updatedAt" => "2026-05-28T14:30:59Z",
+        "payload" => { "status" => "available", "data" => { "orderId" => "ord_123" }, "contentType" => "application/json" }
+      })]
+    end
+
+    mgmt = build_management
+    delivery = mgmt.deliveries.get("ws_1", "del_a", include_payload: true)
+    assert_equal "available", delivery["payload"]["status"]
+    assert_equal "ord_123", delivery["payload"]["data"]["orderId"]
+    assert_equal "application/json", delivery["payload"]["contentType"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_get_returns_forbidden_envelope_for_plan_gated_workspace
+    @stubs.get("/management/v1/workspaces/ws_1/deliveries/del_a") do
+      [200, { "Content-Type" => "application/json" }, JSON.generate({
+        "id" => "del_a", "idempotencyKey" => "k1", "endpointId" => "ep_1",
+        "status" => "delivered", "totalAttempts" => 1,
+        "firstAttemptAt" => nil, "deliveredAt" => "2026-05-28T14:30:59Z",
+        "nextRetryAt" => nil, "hasPayload" => true,
+        "createdAt" => "2026-05-28T14:30:59Z", "updatedAt" => "2026-05-28T14:30:59Z",
+        "payload" => { "status" => "forbidden" }
+      })]
+    end
+
+    mgmt = build_management
+    delivery = mgmt.deliveries.get("ws_1", "del_a", include_payload: true)
+    assert_equal({ "status" => "forbidden" }, delivery["payload"])
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_get_attempts_returns_array
+    @stubs.get("/management/v1/workspaces/ws_1/deliveries/del_a/attempts") do
+      [200, { "Content-Type" => "application/json" }, JSON.generate([
+        { "id" => "att_1", "attemptNumber" => 1, "status" => "failed",
+          "responseStatusCode" => 502, "responseTimeMs" => 142,
+          "errorMessage" => "Bad gateway", "createdAt" => "2026-05-28T14:31:00Z" },
+        { "id" => "att_2", "attemptNumber" => 2, "status" => "success",
+          "responseStatusCode" => 200, "responseTimeMs" => 88,
+          "errorMessage" => nil, "createdAt" => "2026-05-28T14:31:30Z" }
+      ])]
+    end
+
+    mgmt = build_management
+    attempts = mgmt.deliveries.get_attempts("ws_1", "del_a")
+    assert_kind_of Array, attempts
+    assert_equal 2, attempts.length
+    assert_equal 1, attempts[0]["attemptNumber"]
+    assert_equal "success", attempts[1]["status"]
+    @stubs.verify_stubbed_calls
+  end
+
   # -- Error handling -----------------------------------------------------
 
   def test_api_error_on_404
@@ -522,7 +673,8 @@ class ManagementTest < Minitest::Test
   def replace_adapter(mgmt)
     # Access http client through resources and swap the Faraday connection
     [mgmt.endpoints, mgmt.event_types, mgmt.applications,
-     mgmt.subscriptions, mgmt.portal_sessions, mgmt.environments].each do |resource|
+     mgmt.subscriptions, mgmt.portal_sessions, mgmt.environments,
+     mgmt.deliveries].each do |resource|
       http = resource.instance_variable_get(:@http)
       conn = http.instance_variable_get(:@conn)
       new_conn = Faraday.new(url: conn.url_prefix) do |f|

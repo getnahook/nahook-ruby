@@ -264,6 +264,71 @@ class ManagementIntegrationTest < Minitest::Test
     end
   end
 
+  # -- deliveries (reads against pre-seeded fixture rows) ------------------
+  #
+  # Fixture data lives in packages/db/src/seeds/test-fixtures.sql:
+  #   del_fixture_001 -- delivered, hasPayload=true
+  #   del_fixture_002 -- failed, 3 attempts, hasPayload=false
+  #   del_fixture_003 -- delivering, hasPayload=false
+  # All three scoped to ep_integration_test_001.
+
+  def test_deliveries_list_paginates_with_opaque_cursor
+    result = @mgmt.deliveries.list(@workspace_id, "ep_integration_test_001", limit: 2)
+    assert_kind_of Nahook::PaginatedResult, result
+    assert_equal 2, result.data.length
+    ids = result.data.map { |d| d["id"] }
+    assert_includes ids, "del_fixture_003" # newest-first, in flight delivery
+    # With 3 fixture rows and limit=2 we expect a non-null nextCursor.
+    assert_kind_of String, result.next_cursor
+    refute_match(/^del_/, result.next_cursor) # opaque, not a leaked publicId
+  end
+
+  def test_deliveries_list_with_status_filter_returns_failed_fixture
+    result = @mgmt.deliveries.list(@workspace_id, "ep_integration_test_001", status: "failed")
+    assert_equal 1, result.data.length
+    failed = result.data[0]
+    assert_equal "del_fixture_002", failed["id"]
+    assert_equal "failed", failed["status"]
+    assert_equal 3, failed["totalAttempts"]
+    assert_equal false, failed["hasPayload"]
+  end
+
+  def test_deliveries_get_returns_metadata_without_payload_by_default
+    delivery = @mgmt.deliveries.get(@workspace_id, "del_fixture_001")
+    assert_equal "del_fixture_001", delivery["id"]
+    assert_equal "ep_integration_test_001", delivery["endpointId"]
+    assert_equal "delivered", delivery["status"]
+    assert_equal true, delivery["hasPayload"]
+    refute delivery.key?("payload"), "default get() must not include 'payload' envelope"
+  end
+
+  def test_deliveries_get_with_include_payload_returns_envelope
+    delivery = @mgmt.deliveries.get(@workspace_id, "del_fixture_001", include_payload: true)
+    refute_nil delivery["payload"], "payload envelope should be present"
+    # R2 wiring may be absent in the test infra, in which case the envelope
+    # reports "error" or "not_found". All 5 status values are valid wire-level
+    # responses -- do not strict-assert "available".
+    assert_includes %w[available forbidden processing not_found error],
+                    delivery["payload"]["status"]
+  end
+
+  def test_deliveries_get_attempts_returns_chronological_array
+    attempts = @mgmt.deliveries.get_attempts(@workspace_id, "del_fixture_002")
+    assert_kind_of Array, attempts
+    assert_equal 3, attempts.length
+    assert_equal 1, attempts[0]["attemptNumber"]
+    assert_equal 2, attempts[1]["attemptNumber"]
+    assert_equal 3, attempts[2]["attemptNumber"]
+    assert_equal 502, attempts[0]["responseStatusCode"]
+  end
+
+  def test_deliveries_get_raises_404_for_unknown_id
+    err = assert_raises(Nahook::APIError) do
+      @mgmt.deliveries.get(@workspace_id, "del_does_not_exist_anywhere")
+    end
+    assert_equal 404, err.status
+  end
+
   # -- auth error ----------------------------------------------------------
 
   def test_invalid_token_returns_401

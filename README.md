@@ -88,6 +88,56 @@ session = mgmt.portal_sessions.create("ws_abc123", "app_jkl012")
 puts session["url"] # Redirect your customer here
 ```
 
+### Deliveries
+
+Read access to a workspace's webhook deliveries. There is no create/update/delete on this resource — deliveries are produced by the ingestion path and observed through these methods.
+
+```ruby
+# List deliveries for an endpoint, newest-first, cursor-paginated.
+# `next_cursor` is OPAQUE — pass it back verbatim to fetch the next page.
+page = mgmt.deliveries.list("ws_abc123", "ep_def456", limit: 50)
+page.data.each { |d| puts "#{d['id']} #{d['status']}" }
+
+while page.next_cursor
+  page = mgmt.deliveries.list("ws_abc123", "ep_def456", cursor: page.next_cursor)
+  page.data.each { |d| puts "#{d['id']} #{d['status']}" }
+end
+
+# Filter by status. Valid values: "pending", "delivering", "delivered",
+# "scheduled_retry", "failed", "dead_letter".
+failed = mgmt.deliveries.list("ws_abc123", "ep_def456", status: "failed")
+
+# Fetch a single delivery (metadata only).
+delivery = mgmt.deliveries.get("ws_abc123", "del_xyz")
+puts delivery["status"]         # => "delivered"
+puts delivery["totalAttempts"]  # => 1
+puts delivery["hasPayload"]     # => true
+
+# Fetch with the payload envelope. The envelope is a tagged hash whose
+# "status" is one of: "available", "forbidden", "processing", "not_found",
+# "error". The endpoint stays HTTP 200 for all 5 -- the envelope status
+# carries access-level reality, so do NOT rescue on the non-"available" ones.
+delivery = mgmt.deliveries.get("ws_abc123", "del_xyz", include_payload: true)
+case delivery["payload"]["status"]
+when "available"
+  body         = delivery["payload"]["data"]          # decoded JSON
+  content_type = delivery["payload"]["contentType"]   # "application/json"
+when "forbidden"
+  # Workspace plan does not include payload storage.
+when "processing"
+  # Delivery still in flight; payload may be racing the read.
+when "not_found"
+  # Terminal delivery without stored payload (older row, or plan was lower at ingest).
+when "error"
+  # Transient infrastructure failure -- safe to retry.
+end
+
+# List attempts for a delivery in chronological order (oldest first).
+# The attempt "status" is an opaque string, not an enum.
+attempts = mgmt.deliveries.get_attempts("ws_abc123", "del_xyz")
+attempts.each { |a| puts "##{a['attemptNumber']} #{a['status']} #{a['responseStatusCode']}" }
+```
+
 ## Client Options
 
 ### Nahook::Client
