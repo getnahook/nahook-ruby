@@ -161,6 +161,38 @@ client = Nahook::Client.new("nhk_us_...", base_url: "http://localhost:3001")
 
 For unit tests, mock the SDK client at the dependency injection boundary. For integration tests, override the base URL to point at a local server.
 
+### Custom HTTP adapter / Faraday connection
+
+The SDK ships with the `:net_http_persistent` Faraday adapter by default, which keeps a per-thread TCP/TLS pool — back-to-back `send` / `trigger` calls reuse the same connection and skip the DNS + TCP + TLS handshake. For most apps that's all you need.
+
+Two escape hatches when you want more control:
+
+**Swap the adapter.** Useful for high-throughput workloads on `:typhoeus` (curl-multi) without building a full Faraday connection:
+
+```ruby
+require "faraday/typhoeus"  # add the gem to your Gemfile
+
+client = Nahook::Client.new("nhk_us_...", adapter: :typhoeus)
+```
+
+Whatever adapter you name must be available — Faraday 2 split adapters into separate gems (`faraday-typhoeus`, `faraday-net_http`, etc.).
+
+**Supply a fully-configured Faraday connection.** When you need middleware (Datadog / OpenTelemetry instrumentation), a custom proxy, mTLS, request retries beyond what the SDK ships, etc.:
+
+```ruby
+conn = Faraday.new(url: "https://us.api.nahook.com") do |f|
+  f.options.timeout      = 15
+  f.options.open_timeout = 5
+  f.request :url_encoded
+  f.use :datadog_tracing
+  f.adapter :net_http_persistent
+end
+
+client = Nahook::Client.new("nhk_us_...", connection: conn)
+```
+
+When `connection:` is supplied, `base_url`, `timeout_ms`, and `adapter` are ignored — the connection you pass in is used verbatim. The same `adapter:` and `connection:` kwargs are accepted by `Nahook::Management.new`.
+
 ### Nahook::Management
 
 ```ruby

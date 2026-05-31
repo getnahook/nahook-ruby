@@ -54,11 +54,20 @@ module Nahook
     #   (custom middleware, instrumentation, proxies, mTLS, etc.).
     def initialize(token:, base_url: DEFAULT_BASE_URL, timeout_ms: DEFAULT_TIMEOUT_MS,
                    retries: 0, adapter: DEFAULT_ADAPTER, connection: nil)
-      @token      = token
-      @retries    = retries
-      @timeout_ms = timeout_ms
+      @token   = token
+      @retries = retries
 
-      @conn = connection || build_default_connection(base_url, timeout_ms, adapter)
+      if connection
+        @conn = connection
+        # Prefer the supplied connection's own timeout so `TimeoutError` reports
+        # the value the caller actually configured. Faraday options.timeout is
+        # in seconds — convert. Fall back to the constructor kwarg if unset.
+        conn_timeout_secs = connection.options.timeout
+        @timeout_ms = conn_timeout_secs ? (conn_timeout_secs * 1000).to_i : timeout_ms
+      else
+        @timeout_ms = timeout_ms
+        @conn = build_default_connection(base_url, timeout_ms, adapter)
+      end
     end
 
     # Execute an HTTP request with optional retry logic.
