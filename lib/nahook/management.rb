@@ -47,13 +47,23 @@ module Nahook
     # @param token [String] management token (must start with "nhm_")
     # @param base_url [String] API base URL
     # @param timeout_ms [Integer] request timeout in milliseconds (default: 30000)
+    # @param adapter [Symbol, nil] Faraday adapter to use (defaults to
+    #   `:net_http_persistent` for keep-alive). See {Client#initialize}.
+    # @param connection [Faraday::Connection, nil] a fully-configured Faraday
+    #   connection. When supplied, `base_url`, `timeout_ms`, and `adapter`
+    #   are ignored.
     # @raise [ArgumentError] if the token does not start with "nhm_"
-    def initialize(token, base_url: HttpClient::DEFAULT_BASE_URL, timeout_ms: HttpClient::DEFAULT_TIMEOUT_MS)
+    def initialize(token, base_url: HttpClient::DEFAULT_BASE_URL, timeout_ms: HttpClient::DEFAULT_TIMEOUT_MS,
+                   adapter: nil, connection: nil)
       unless token.start_with?("nhm_")
         raise ArgumentError, "Invalid management token: must start with 'nhm_'"
       end
 
-      http = HttpClient.new(token: token, base_url: base_url, timeout_ms: timeout_ms)
+      http_kwargs = { token: token, base_url: base_url, timeout_ms: timeout_ms }
+      http_kwargs[:adapter]    = adapter    if adapter
+      http_kwargs[:connection] = connection if connection
+
+      http = HttpClient.new(**http_kwargs)
 
       @endpoints       = Resources::Endpoints.new(http)
       @event_types     = Resources::EventTypes.new(http)

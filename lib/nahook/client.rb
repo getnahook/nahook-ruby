@@ -23,20 +23,33 @@ module Nahook
     # @param base_url [String] API base URL
     # @param timeout_ms [Integer] request timeout in milliseconds (default: 30000)
     # @param retries [Integer] number of retry attempts for retryable errors
+    # @param adapter [Symbol, nil] Faraday adapter to use (defaults to
+    #   `:net_http_persistent` for keep-alive). Useful for swapping to e.g.
+    #   `:typhoeus` for high-throughput workloads without building a full
+    #   Faraday connection.
+    # @param connection [Faraday::Connection, nil] a fully-configured Faraday
+    #   connection. When supplied, `base_url`, `timeout_ms`, and `adapter`
+    #   are ignored — the caller owns connection configuration (custom
+    #   middleware, instrumentation, proxies, mTLS, etc.).
     # @raise [ArgumentError] if the API key does not start with "nhk_"
-    def initialize(api_key, base_url: nil, timeout_ms: HttpClient::DEFAULT_TIMEOUT_MS, retries: 0)
+    def initialize(api_key, base_url: nil, timeout_ms: HttpClient::DEFAULT_TIMEOUT_MS,
+                   retries: 0, adapter: nil, connection: nil)
       unless api_key.start_with?("nhk_")
         raise ArgumentError, "Invalid API key: must start with 'nhk_'"
       end
 
       resolved_url = base_url || HttpClient.resolve_base_url(api_key)
 
-      @http = HttpClient.new(
+      http_kwargs = {
         token: api_key,
         base_url: resolved_url,
         timeout_ms: timeout_ms,
-        retries: retries
-      )
+        retries: retries,
+      }
+      http_kwargs[:adapter]    = adapter    if adapter
+      http_kwargs[:connection] = connection if connection
+
+      @http = HttpClient.new(**http_kwargs)
     end
 
     # Send a payload to a specific endpoint.

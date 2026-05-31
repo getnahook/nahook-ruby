@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "faraday"
+require "faraday/net_http_persistent"
 require "json"
 require "cgi"
 
@@ -16,6 +17,12 @@ module Nahook
     DEFAULT_TIMEOUT_MS = 30_000
     BASE_DELAY_MS     = 500
     MAX_DELAY_MS      = 10_000
+
+    # The default Faraday adapter. `net_http_persistent` keeps a per-thread
+    # TCP/TLS pool so back-to-back requests skip the full handshake. Callers
+    # can override via the `adapter:` kwarg, or bypass adapter selection
+    # entirely by passing a pre-built `connection:`.
+    DEFAULT_ADAPTER = :net_http_persistent
 
     REGION_BASE_URLS = {
       "us" => "https://us.api.nahook.com",
@@ -36,17 +43,22 @@ module Nahook
     # @param base_url [String] API base URL
     # @param timeout_ms [Integer] request timeout in milliseconds (default: 30000)
     # @param retries [Integer] number of retry attempts for retryable errors
-    def initialize(token:, base_url: DEFAULT_BASE_URL, timeout_ms: DEFAULT_TIMEOUT_MS, retries: 0)
+    # @param adapter [Symbol] Faraday adapter to use when no custom connection
+    #   is supplied. Defaults to `:net_http_persistent` (keep-alive). Other
+    #   options the caller can pass: `:net_http`, `:typhoeus`, `:patron`, etc.
+    #   Whatever adapter is named must be available — Faraday 2 split adapters
+    #   into separate gems, so e.g. `:typhoeus` requires `gem "faraday-typhoeus"`.
+    # @param connection [Faraday::Connection, nil] a fully-configured Faraday
+    #   connection to use verbatim. When supplied, `base_url`, `timeout_ms`,
+    #   and `adapter` are ignored — the caller owns connection configuration
+    #   (custom middleware, instrumentation, proxies, mTLS, etc.).
+    def initialize(token:, base_url: DEFAULT_BASE_URL, timeout_ms: DEFAULT_TIMEOUT_MS,
+                   retries: 0, adapter: DEFAULT_ADAPTER, connection: nil)
       @token      = token
       @retries    = retries
       @timeout_ms = timeout_ms
 
-      timeout_secs = timeout_ms / 1000.0
-      @conn = Faraday.new(url: base_url.chomp("/")) do |f|
-        f.options.timeout      = timeout_secs
-        f.options.open_timeout = timeout_secs
-        f.adapter Faraday.default_adapter
-      end
+      @conn = connection || build_default_connection(base_url, timeout_ms, adapter)
     end
 
     # Execute an HTTP request with optional retry logic.
@@ -158,6 +170,15 @@ module Nahook
       when NetworkError then true
       when TimeoutError then true
       else false
+      end
+    end
+
+    def build_default_connection(base_url, timeout_ms, adapter)
+      timeout_secs = timeout_ms / 1000.0
+      Faraday.new(url: base_url.chomp("/")) do |f|
+        f.options.timeout      = timeout_secs
+        f.options.open_timeout = timeout_secs
+        f.adapter adapter
       end
     end
   end

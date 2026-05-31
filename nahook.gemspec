@@ -27,4 +27,8 @@ Gem::Specification.new do |s|
   s.files = Dir["lib/**/*.rb", "README.md", "LICENSE"]
 
   s.add_dependency "faraday", "~> 2.0"
+  # Provides the :net_http_persistent adapter for keep-alive connection reuse.
+  # Per-thread Net::HTTP::Persistent pool — eliminates the per-request DNS+TCP+TLS
+  # handshake that the default :net_http adapter pays on every call.
+  s.add_dependency "faraday-net_http_persistent", "~> 2.0"
 end
