@@ -183,8 +183,10 @@ Whatever adapter you name must be available — Faraday 2 split adapters into se
 conn = Faraday.new(url: "https://us.api.nahook.com") do |f|
   f.options.timeout      = 15
   f.options.open_timeout = 5
-  f.request :url_encoded
-  f.use :datadog_tracing
+  # Plug in your tracing/observability middleware. The exact symbol/class
+  # depends on the gem — e.g. `Datadog::Tracing::Contrib::Faraday::Middleware`
+  # from `ddtrace`, or `OpenTelemetry::Instrumentation::Faraday::Middlewares::TracerMiddleware`.
+  # f.use SomeTracingMiddleware
   f.adapter :net_http_persistent
 end
 
