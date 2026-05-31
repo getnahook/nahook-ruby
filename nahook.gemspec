@@ -24,7 +24,7 @@ Gem::Specification.new do |s|
   }
 
   s.required_ruby_version = ">= 3.0"
-  s.files = Dir["lib/**/*.rb", "README.md", "LICENSE"]
+  s.files = Dir["lib/**/*.rb", "README.md", "CHANGELOG.md", "LICENSE"]
 
   s.add_dependency "faraday", "~> 2.0"
   # Provides the :net_http_persistent adapter for keep-alive connection reuse.
