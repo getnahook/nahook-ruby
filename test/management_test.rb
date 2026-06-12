@@ -312,6 +312,21 @@ class ManagementTest < Minitest::Test
     @stubs.verify_stubbed_calls
   end
 
+  def test_applications_response_without_cap_fields_passes_through_raw
+    # The SDK returns the parsed JSON hash as-is: absent fields are missing
+    # keys, unlike the typed SDKs which default showEventTypes to true.
+    # The live API always sends both fields.
+    @stubs.get("/management/v1/workspaces/ws_1/applications/app_1") do
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "app_1", "name" => "Acme" })]
+    end
+
+    mgmt = build_management
+    app = mgmt.applications.get("ws_1", "app_1")
+    refute app.key?("maxEndpoints")
+    refute app.key?("showEventTypes")
+    @stubs.verify_stubbed_calls
+  end
+
   def test_applications_update_max_endpoints_value_and_response_fields
     @stubs.patch("/management/v1/workspaces/ws_1/applications/app_1") do |env|
       body = JSON.parse(env.body)
