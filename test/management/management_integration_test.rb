@@ -329,6 +329,78 @@ class ManagementIntegrationTest < Minitest::Test
     assert_equal 404, err.status
   end
 
+  # -- application max endpoints cap lifecycle ------------------------------
+
+  def test_application_max_endpoints_cap_lifecycle
+    # I1: create with a cap of 2 and event types hidden
+    app = @mgmt.applications.create(@workspace_id,
+      name: "Ruby Cap Test App #{@suffix}",
+      max_endpoints: 2,
+      show_event_types: false
+    )
+    app_id = app["id"]
+    ep_ids = []
+
+    begin
+      assert_equal 2, app["maxEndpoints"]
+      assert_equal false, app["showEventTypes"]
+
+      fetched = @mgmt.applications.get(@workspace_id, app_id)
+      assert_equal 2, fetched["maxEndpoints"]
+      assert_equal false, fetched["showEventTypes"]
+
+      # I2: update cap to 1 and show event types
+      updated = @mgmt.applications.update(@workspace_id, app_id,
+        max_endpoints: 1,
+        show_event_types: true
+      )
+      assert_equal 1, updated["maxEndpoints"]
+      assert_equal true, updated["showEventTypes"]
+
+      fetched = @mgmt.applications.get(@workspace_id, app_id)
+      assert_equal 1, fetched["maxEndpoints"]
+      assert_equal true, fetched["showEventTypes"]
+
+      # I3: first endpoint fits under the cap; second must hit the limit
+      ep1 = @mgmt.applications.create_endpoint(@workspace_id, app_id,
+        url: "https://httpbin.org/post"
+      )
+      ep_ids << ep1["id"]
+
+      err = assert_raises(Nahook::APIError) do
+        @mgmt.applications.create_endpoint(@workspace_id, app_id,
+          url: "https://httpbin.org/post"
+        )
+      end
+      assert_equal 403, err.status
+      assert_equal "application_endpoint_limit_reached", err.code
+
+      # I4: disabled endpoints still count toward the cap
+      @mgmt.endpoints.update(@workspace_id, ep_ids[0], is_active: false)
+
+      err = assert_raises(Nahook::APIError) do
+        @mgmt.applications.create_endpoint(@workspace_id, app_id,
+          url: "https://httpbin.org/post"
+        )
+      end
+      assert_equal 403, err.status
+      assert_equal "application_endpoint_limit_reached", err.code
+
+      # I5: clear the cap (explicit null) -- creates succeed again
+      cleared = @mgmt.applications.update(@workspace_id, app_id, max_endpoints: nil)
+      assert_nil cleared["maxEndpoints"]
+
+      ep2 = @mgmt.applications.create_endpoint(@workspace_id, app_id,
+        url: "https://httpbin.org/post"
+      )
+      ep_ids << ep2["id"]
+    ensure
+      # Cleanup
+      ep_ids.each { |ep_id| @mgmt.endpoints.delete(@workspace_id, ep_id) rescue nil }
+      @mgmt.applications.delete(@workspace_id, app_id) rescue nil
+    end
+  end
+
   # -- auth error ----------------------------------------------------------
 
   def test_invalid_token_returns_401
