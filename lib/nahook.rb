@@ -27,4 +27,12 @@ require_relative "nahook/resources/deliveries"
 # @example Managing endpoints
 #   mgmt = Nahook::Management.new("nhm_your_token")
 #   mgmt.endpoints.list("ws_abc123")
-module Nahook; end
+module Nahook
+  # Sentinel distinguishing "argument not passed" from an explicit +nil+.
+  #
+  # Used for tri-state PATCH fields like +max_endpoints+: leaving the
+  # argument as +UNSET+ omits it from the request body (unchanged), while
+  # passing +nil+ sends an explicit JSON null (clear).
+  UNSET = Object.new
+  UNSET.freeze
+end

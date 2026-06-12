@@ -45,11 +45,18 @@ module Nahook
       # @param name [String] the application name
       # @param external_id [String, nil] an external identifier for your system
       # @param metadata [Hash, nil] arbitrary key-value metadata
+      # @param max_endpoints [Integer, nil] cap on how many endpoints this
+      #   application may have (disabled endpoints count); 0 makes it
+      #   read-only, nil (default) means unlimited
+      # @param show_event_types [Boolean, nil] whether the Developer Portal
+      #   exposes the event-type catalog (server defaults to true)
       # @return [Hash] the created application
-      def create(workspace_id, name:, external_id: nil, metadata: nil)
+      def create(workspace_id, name:, external_id: nil, metadata: nil, max_endpoints: nil, show_event_types: nil)
         body = { "name" => name }
         body["externalId"] = external_id if external_id
         body["metadata"]   = metadata    if metadata
+        body["maxEndpoints"]   = max_endpoints    unless max_endpoints.nil?
+        body["showEventTypes"] = show_event_types unless show_event_types.nil?
 
         @http.request(
           method: :post,
@@ -76,11 +83,17 @@ module Nahook
       # @param id [String] the application public ID
       # @param name [String, nil] updated name
       # @param metadata [Hash, nil] updated metadata
+      # @param max_endpoints [Integer, nil, UNSET] tri-state: leave as
+      #   +UNSET+ (default) to keep the current cap, pass +nil+ to clear it
+      #   (unlimited), or pass an Integer (>= 0) to set it
+      # @param show_event_types [Boolean, UNSET] omitted when +UNSET+
       # @return [Hash] the updated application
-      def update(workspace_id, id, name: nil, metadata: nil)
+      def update(workspace_id, id, name: nil, metadata: nil, max_endpoints: UNSET, show_event_types: UNSET)
         body = {}
         body["name"]     = name     unless name.nil?
         body["metadata"] = metadata unless metadata.nil?
+        body["maxEndpoints"]   = max_endpoints    unless max_endpoints.equal?(UNSET)
+        body["showEventTypes"] = show_event_types unless show_event_types.equal?(UNSET)
 
         @http.request(
           method: :patch,

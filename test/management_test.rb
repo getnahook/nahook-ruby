@@ -241,6 +241,93 @@ class ManagementTest < Minitest::Test
     @stubs.verify_stubbed_calls
   end
 
+  # -- Applications: maxEndpoints + showEventTypes (tri-state) -------------
+
+  def test_applications_create_with_max_endpoints
+    @stubs.post("/management/v1/workspaces/ws_1/applications") do |env|
+      body = JSON.parse(env.body)
+      assert_equal 2, body["maxEndpoints"]
+      [201, { "Content-Type" => "application/json" },
+       JSON.generate({ "id" => "app_new", "name" => "Acme", "maxEndpoints" => 2, "showEventTypes" => true })]
+    end
+
+    mgmt = build_management
+    app = mgmt.applications.create("ws_1", name: "Acme", max_endpoints: 2)
+    assert_equal 2, app["maxEndpoints"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_applications_create_with_show_event_types_false
+    @stubs.post("/management/v1/workspaces/ws_1/applications") do |env|
+      body = JSON.parse(env.body)
+      assert_equal false, body["showEventTypes"]
+      [201, { "Content-Type" => "application/json" },
+       JSON.generate({ "id" => "app_new", "name" => "Acme", "maxEndpoints" => nil, "showEventTypes" => false })]
+    end
+
+    mgmt = build_management
+    app = mgmt.applications.create("ws_1", name: "Acme", show_event_types: false)
+    assert_equal false, app["showEventTypes"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_applications_create_omits_unset_cap_fields
+    @stubs.post("/management/v1/workspaces/ws_1/applications") do |env|
+      body = JSON.parse(env.body)
+      refute body.key?("maxEndpoints")
+      refute body.key?("showEventTypes")
+      [201, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "app_new", "name" => "Acme" })]
+    end
+
+    mgmt = build_management
+    mgmt.applications.create("ws_1", name: "Acme")
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_applications_update_max_endpoints_explicit_nil_sends_null
+    @stubs.patch("/management/v1/workspaces/ws_1/applications/app_1") do |env|
+      body = JSON.parse(env.body)
+      assert body.key?("maxEndpoints")
+      assert_nil body["maxEndpoints"]
+      [200, { "Content-Type" => "application/json" },
+       JSON.generate({ "id" => "app_1", "name" => "Acme", "maxEndpoints" => nil, "showEventTypes" => true })]
+    end
+
+    mgmt = build_management
+    app = mgmt.applications.update("ws_1", "app_1", max_endpoints: nil)
+    assert_nil app["maxEndpoints"]
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_applications_update_omits_cap_fields_when_unset
+    @stubs.patch("/management/v1/workspaces/ws_1/applications/app_1") do |env|
+      body = JSON.parse(env.body)
+      refute body.key?("maxEndpoints")
+      refute body.key?("showEventTypes")
+      [200, { "Content-Type" => "application/json" }, JSON.generate({ "id" => "app_1", "name" => "Renamed" })]
+    end
+
+    mgmt = build_management
+    mgmt.applications.update("ws_1", "app_1", name: "Renamed")
+    @stubs.verify_stubbed_calls
+  end
+
+  def test_applications_update_max_endpoints_value_and_response_fields
+    @stubs.patch("/management/v1/workspaces/ws_1/applications/app_1") do |env|
+      body = JSON.parse(env.body)
+      assert_equal 5, body["maxEndpoints"]
+      assert_equal true, body["showEventTypes"]
+      [200, { "Content-Type" => "application/json" },
+       JSON.generate({ "id" => "app_1", "name" => "Acme", "maxEndpoints" => 5, "showEventTypes" => true })]
+    end
+
+    mgmt = build_management
+    app = mgmt.applications.update("ws_1", "app_1", max_endpoints: 5, show_event_types: true)
+    assert_equal 5, app["maxEndpoints"]
+    assert_equal true, app["showEventTypes"]
+    @stubs.verify_stubbed_calls
+  end
+
   def test_applications_list_endpoints
     @stubs.get("/management/v1/workspaces/ws_1/applications/app_1/endpoints") do
       [200, { "Content-Type" => "application/json" }, JSON.generate([{ "id" => "ep_1" }])]
